@@ -3,8 +3,8 @@ const std = @import("std");
 pub fn LinkedList(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
-        head: ?*Node,
-        tail: ?*Node,
+        head: ?*Node = null,
+        tail: ?*Node = null,
 
         // ------------------------------------------------------------------------------ \\
         //  Errors                                                                        \\
@@ -51,6 +51,9 @@ pub fn LinkedList(comptime T: type) type {
         pub const NodesIterator = struct {
             current_node: ?*Node,
 
+            /// Returns pointer to list node and goes to the next one.
+            ///
+            /// If list doesn't have node returns `null`.
             pub fn next(self: *@This()) ?*Node {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.next;
@@ -59,6 +62,9 @@ pub fn LinkedList(comptime T: type) type {
                 return null;
             }
 
+            /// Returns pointer to list node and goes to the previous one.
+            ///
+            /// If list doesn't have node returns `null`.
             pub fn previous(self: *@This()) ?*Node {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.previous;
@@ -76,6 +82,9 @@ pub fn LinkedList(comptime T: type) type {
         pub const ElementsIterator = struct {
             current_node: ?*Node,
 
+            /// Returns pointer to list element and goes to the next one.
+            ///
+            /// If list doesn't have element returns `null`.
             pub fn next(self: *@This()) ?*T {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.next;
@@ -84,6 +93,9 @@ pub fn LinkedList(comptime T: type) type {
                 return null;
             }
 
+            /// Returns pointer to list element and goes to the previous one.
+            ///
+            /// If list doesn't have element returns `null`.
             pub fn previous(self: *@This()) ?*T {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.previous;
@@ -99,9 +111,23 @@ pub fn LinkedList(comptime T: type) type {
 
         /// Initializes new linked list.
         ///
-        /// List have to be cleared after finish operating with it using `.clear()` method to free the memory.
+        /// List have to be deinited after finish operating with it using `.clear()` method to free the memory.
         pub fn init(allocator: std.mem.Allocator) @This() {
-            return .{ .allocator = allocator, .head = null, .tail = null };
+            return .{ .allocator = allocator };
+        }
+
+        /// Initializes new linked list and fill it with slice values.
+        ///
+        /// List have to be deinited after finish operating with it using `.clear()` method to free the memory.
+        pub fn initWithSlice(allocator: std.mem.Allocator, slice: []const T) !@This() {
+            var linked_list: @This() = .{ .allocator = allocator };
+            errdefer linked_list.clear();
+
+            for (slice) |item| {
+                try linked_list.addToTail(item);
+            }
+
+            return linked_list;
         }
 
         /// Deallocates all of the list elements.
@@ -269,6 +295,19 @@ pub fn LinkedList(comptime T: type) type {
             selected_node.?.previous = new_node;
         }
 
+        /// Inserts slice values at given index.
+        pub fn insertSlice(self: *@This(), node_index: usize, slice: []const T) !void {
+            const reversed_slice = try self.allocator.alloc(T, slice.len);
+            defer self.allocator.free(reversed_slice);
+
+            @memcpy(reversed_slice, slice);
+            std.mem.reverse(T, reversed_slice);
+
+            for (reversed_slice) |item| {
+                try self.insert(node_index, item);
+            }
+        }
+
         /// Deletes value located at given index.
         pub fn delete(self: *@This(), node_index: usize) !void {
             var counter: usize = 0;
@@ -303,7 +342,7 @@ pub fn LinkedList(comptime T: type) type {
             self.allocator.destroy(selected_node.?);
         }
 
-        /// Deletes value located at given index and return it's copied value.
+        /// Deletes value located at given index and return it's copy.
         pub fn pop(self: *@This(), node_index: usize) !T {
             var counter: usize = 0;
             var selected_node: ?*Node = null;
@@ -534,9 +573,48 @@ pub fn LinkedList(comptime T: type) type {
             return counter;
         }
 
+        /// Checks if given value contains in list.
+        pub fn contains(self: @This(), value: T) bool {
+            var elements_iterator = self.elementsIterator(.head);
+            while (elements_iterator.next()) |item| {
+                if (item.* == value) return true;
+            }
+
+            return false;
+        }
+
+        /// Checks if given value contains in list at least `n` times.
+        pub fn containsAtLeast(self: @This(), value: T, times: usize) bool {
+            var counter: usize = 0;
+
+            var elements_iterator = self.elementsIterator(.head);
+            while (elements_iterator.next()) |item| {
+                if (item.* == value) counter += 1;
+            }
+
+            if (counter >= times) return true else false;
+        }
+
+        /// Retrives list size.
+        pub fn size(self: @This()) usize {
+            var counter: usize = 0;
+
+            var elements_iterator = self.elementsIterator(.head);
+            while (elements_iterator.next()) |_| {
+                counter += 1;
+            }
+
+            return counter;
+        }
+
+        /// Checks if list is empty.
+        pub fn isEmpty(self: @This()) bool {
+            if (self.head != null) return false else return true;
+        }
+
         /// Creates deep copy of the list.
         ///
-        /// New list have to be cleared after finish operating with it using `.clear()` method to free the memory.
+        /// New list have to be deinited after finish operating with it using `.clear()` method to free the memory.
         pub fn copy(self: @This(), allocator: std.mem.Allocator) !LinkedList(T) {
             var new_list = LinkedList(T).init(allocator);
 
@@ -561,21 +639,31 @@ pub fn LinkedList(comptime T: type) type {
             self.* = new_list;
         }
 
-        /// Retrives list size.
-        pub fn size(self: @This()) usize {
+        /// Swaps elements at given indexes.
+        pub fn swapElements(self: *@This(), first_element_index: usize, seconds_element_index: usize) !void {
             var counter: usize = 0;
 
+            var first_element: ?*T = null;
+            var second_element: ?*T = null;
+
             var elements_iterator = self.elementsIterator(.head);
-            while (elements_iterator.next()) |_| {
+            while (elements_iterator.next()) |item| {
+                if (counter == first_element_index) {
+                    first_element = item;
+                }
+                if (counter == seconds_element_index) {
+                    second_element = item;
+                }
                 counter += 1;
             }
 
-            return counter;
-        }
+            if (first_element == null or second_element == null) {
+                return LinkedListError.OutOfBoundError;
+            }
 
-        /// Checks if list is empty.
-        pub fn isEmpty(self: @This()) bool {
-            if (self.head != null) return false else return true;
+            const temp = first_element.?.*;
+            first_element.?.* = second_element.?.*;
+            second_element.?.* = temp;
         }
 
         /// Calls given function for list elements.
@@ -722,7 +810,7 @@ pub fn LinkedList(comptime T: type) type {
         /// Creates slice from list.
         ///
         /// Slice have to be freed using `allocator.free(slice)` after finish operating with it to free the memory.
-        pub fn toSlice(self: @This()) ![]T {
+        pub fn toOwnedSlice(self: @This()) ![]T {
             var counter: usize = 0;
             var result_slice = try self.allocator.alloc(T, self.size());
 
