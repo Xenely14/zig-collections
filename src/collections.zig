@@ -17,7 +17,7 @@ pub fn LinkedList(comptime T: type) type {
         // ------------------------------------------------------------------------------ \\
         //  Enums                                                                         \\
         // ------------------------------------------------------------------------------ \\
-        pub const LinkedListIteratorStart = enum {
+        const LinkedListIteratorStart = enum {
             head,
             tail,
         };
@@ -27,7 +27,7 @@ pub fn LinkedList(comptime T: type) type {
         // ------------------------------------------------------------------------------ \\
 
         /// Indexed iterator item. Contains value of `E` type and index of this element in list.
-        pub fn IndexedItem(comptime E: type) type {
+        fn IndexedItem(comptime E: type) type {
             return struct {
                 item: E,
                 index: usize,
@@ -41,7 +41,7 @@ pub fn LinkedList(comptime T: type) type {
         /// List node element. Contains value and pointers to next and previous nodes.
         ///
         /// If node doesn't references to another one nodes than `next` and(or) `previous` fields have to be `null`.
-        pub const Node = struct {
+        const Node = struct {
             value: T,
             next: ?*Node = null,
             previous: ?*Node = null,
@@ -50,7 +50,7 @@ pub fn LinkedList(comptime T: type) type {
         /// List iteration boundaries. Contains information to about list iteration limitations.
         ///
         /// If no borders required `start_at_index` and(or) `stop_at_index` fields have to be `null`.
-        pub const IterationBoundaries = struct {
+        const IterationBoundaries = struct {
             start_at_index: ?usize = null,
             stop_at_index: ?usize = null,
         };
@@ -60,7 +60,7 @@ pub fn LinkedList(comptime T: type) type {
         /// Returns next node pointer using `.next()` if it's exists else returns `null`, changes contained node.
         ///
         /// Returns previous node pointer using `.previous()` if it's exists else returns `null`, changes contained node.
-        pub const NodesIterator = struct {
+        const NodesIterator = struct {
             current_node: ?*Node,
             current_index: usize,
 
