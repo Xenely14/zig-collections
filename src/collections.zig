@@ -26,7 +26,7 @@ pub fn LinkedList(comptime T: type) type {
         //  Generic structs                                                               \\
         // ------------------------------------------------------------------------------ \\
 
-        /// Indexed iterator element. Contains value of `E` type and index of this element in list.
+        /// Indexed iterator item. Contains value of `E` type and index of this element in list.
         pub fn IndexedItem(comptime E: type) type {
             return struct {
                 item: E,
@@ -62,6 +62,7 @@ pub fn LinkedList(comptime T: type) type {
         /// Returns previous node pointer using `.previous()` if it's exists else returns `null`, changes contained node.
         pub const NodesIterator = struct {
             current_node: ?*Node,
+            current_index: usize,
 
             /// Returns pointer to list node and goes to the next one.
             ///
@@ -69,7 +70,22 @@ pub fn LinkedList(comptime T: type) type {
             pub fn next(self: *@This()) ?*Node {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.next;
+
+                    defer self.current_index +|= 1;
                     return item;
+                }
+                return null;
+            }
+
+            /// Returns container containing pointer to list node and it's index. Goes to the next one.
+            ///
+            /// If list doesn't have node returns `null`.
+            pub fn nextWithIndex(self: *@This()) ?IndexedItem(*T) {
+                if (self.current_node) |item| {
+                    self.current_node = self.current_node.?.next;
+
+                    defer self.current_index +|= 1;
+                    return .{ .item = item, .index = self.current_index };
                 }
                 return null;
             }
@@ -80,38 +96,17 @@ pub fn LinkedList(comptime T: type) type {
             pub fn previous(self: *@This()) ?*Node {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.previous;
+
+                    defer self.current_index -|= 1;
                     return item;
                 }
                 return null;
             }
-        };
 
-        /// List items iterator. Contains node and methods to walk through the list items beginning from the contained node.
-        ///
-        /// Returns next container containing node pointer and it's index using `.next()` if it's exists else returns `null`, changes contained node.
-        ///
-        /// Returns previous container containing node pointer and it's index using `.previous()` if it's exists else returns `null`, changes contained node.
-        pub const NodesIteratorWithIndex = struct {
-            current_index: usize,
-            current_node: ?*Node,
-
-            /// Returns item contains pointer to list node and it's index, then goes to the next one item.
+            /// Returns container containing pointer to list node and it's index. Goes to the previous one.
             ///
-            /// If list doesn't have item returns `null`.
-            pub fn next(self: *@This()) ?IndexedItem(*Node) {
-                if (self.current_node) |item| {
-                    self.current_node = self.current_node.?.next;
-
-                    defer self.current_index +|= 1;
-                    return .{ .item = item, .index = self.current_index };
-                }
-                return null;
-            }
-
-            /// Returns item contains pointer to list node and it's index, then goes to the previous one item.
-            ///
-            /// If list doesn't have item returns `null`.
-            pub fn previous(self: *@This()) ?IndexedItem(*Node) {
+            /// If list doesn't have node returns `null`.
+            pub fn previousWithIndex(self: *@This()) ?IndexedItem(*T) {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.previous;
 
@@ -129,6 +124,7 @@ pub fn LinkedList(comptime T: type) type {
         /// Returns previous element pointer node using `.previous()` if it's exists else returns `null`, changes contained node.
         pub const ElementsIterator = struct {
             current_node: ?*Node,
+            current_index: usize,
 
             /// Returns pointer to list element and goes to the next one.
             ///
@@ -136,7 +132,22 @@ pub fn LinkedList(comptime T: type) type {
             pub fn next(self: *@This()) ?*T {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.next;
+
+                    defer self.current_index +|= 1;
                     return &item.value;
+                }
+                return null;
+            }
+
+            /// Returns container containing pointer to list element and it's index. Goes to the next one.
+            ///
+            /// If list doesn't have element returns `null`.
+            pub fn nextWithIndex(self: *@This()) ?IndexedItem(*T) {
+                if (self.current_node) |item| {
+                    self.current_node = self.current_node.?.next;
+
+                    defer self.current_index +|= 1;
+                    return .{ .item = &item.value, .index = self.current_index };
                 }
                 return null;
             }
@@ -147,38 +158,17 @@ pub fn LinkedList(comptime T: type) type {
             pub fn previous(self: *@This()) ?*T {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.previous;
+
+                    defer self.current_index -|= 1;
                     return &item.value;
                 }
                 return null;
             }
-        };
 
-        /// List items iterator. Contains node and methods to walk through the list items beginning from the contained node.
-        ///
-        /// Returns next container containing element pointer and it's index using `.next()` if it's exists else returns `null`, changes contained node.
-        ///
-        /// Returns previous container containing element pointer and it's index using `.previous()` if it's exists else returns `null`, changes contained node.
-        pub const ElementsIteratorWithIndex = struct {
-            current_index: usize,
-            current_node: ?*Node,
-
-            /// Returns item contains pointer to list element and it's index, then goes to the next one item.
+            /// Returns container containing pointer to list element and it's index. Goes to the previous one.
             ///
-            /// If list doesn't have item returns `null`.
-            pub fn next(self: *@This()) ?IndexedItem(*T) {
-                if (self.current_node) |item| {
-                    self.current_node = self.current_node.?.next;
-
-                    defer self.current_index +|= 1;
-                    return .{ .item = &item.value, .index = self.current_index };
-                }
-                return null;
-            }
-
-            /// Returns item contains pointer to list element and it's index, then goes to the previous one item.
-            ///
-            /// If list doesn't have item returns `null`.
-            pub fn previous(self: *@This()) ?IndexedItem(*T) {
+            /// If list doesn't have element returns `null`.
+            pub fn previousWithIndex(self: *@This()) ?IndexedItem(*T) {
                 if (self.current_node) |item| {
                     self.current_node = self.current_node.?.previous;
 
@@ -228,18 +218,8 @@ pub fn LinkedList(comptime T: type) type {
         /// If iterator reaches last value returns `null`.
         pub fn nodesIterator(self: @This(), start_node: LinkedListIteratorStart) NodesIterator {
             return switch (start_node) {
-                .head => NodesIterator{ .current_node = self.head },
-                .tail => NodesIterator{ .current_node = self.tail },
-            };
-        }
-
-        /// Returns iterator to iterate list items containing list nodes pointers and it's indexes using`.next()` and `.previous()` methods.
-        ///
-        /// If iterator reaches last value returns `null`.
-        pub fn nodesIteratorWithIndex(self: @This(), start_node: LinkedListIteratorStart) NodesIteratorWithIndex {
-            return switch (start_node) {
-                .head => NodesIteratorWithIndex{ .current_node = self.head, .current_index = 0 },
-                .tail => NodesIteratorWithIndex{ .current_node = self.tail, .current_index = self.size() - 1 },
+                .head => NodesIterator{ .current_node = self.head, .current_index = 0 },
+                .tail => NodesIterator{ .current_node = self.tail, .current_index = self.size() - 1 },
             };
         }
 
@@ -248,18 +228,8 @@ pub fn LinkedList(comptime T: type) type {
         /// If iterator reaches last value returns `null`.
         pub fn elementsIterator(self: @This(), start_node: LinkedListIteratorStart) ElementsIterator {
             return switch (start_node) {
-                .head => ElementsIterator{ .current_node = self.head },
-                .tail => ElementsIterator{ .current_node = self.tail },
-            };
-        }
-
-        /// Returns iterator to iterate list items containing list elements pointers and it's indexes using`.next()` and `.previous()` methods.
-        ///
-        /// If iterator reaches last value returns `null`.
-        pub fn elementsIteratorWithIndex(self: @This(), start_node: LinkedListIteratorStart) ElementsIteratorWithIndex {
-            return switch (start_node) {
-                .head => ElementsIteratorWithIndex{ .current_node = self.head, .current_index = 0 },
-                .tail => ElementsIteratorWithIndex{ .current_node = self.tail, .current_index = self.size() - 1 },
+                .head => ElementsIterator{ .current_node = self.head, .current_index = 0 },
+                .tail => ElementsIterator{ .current_node = self.tail, .current_index = self.size() - 1 },
             };
         }
 
